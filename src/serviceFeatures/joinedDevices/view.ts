@@ -53,6 +53,10 @@ export function joinedDevicesView(
     };
 }
 
+/** Custom builds (levity/obsidian-livesync, branch lw) are versioned
+ * `<upstream>-lw.<n>`; compare them as the upstream version they are built on. */
+const upstreamVersion = (version: string) => version.replace(/-lw\.\d+$/, "");
+
 export function differentDeviceVersions(
     snapshot: JoinedDevicesSnapshot,
     ownId: string,
@@ -65,7 +69,7 @@ export function differentDeviceVersions(
         if (device.id === ownId || !device.pluginVersion || hiddenDeviceIds.includes(device.id)) {
             continue;
         }
-        const comparison = comparePluginVersions(device.pluginVersion, ownVersion);
+        const comparison = comparePluginVersions(upstreamVersion(device.pluginVersion), upstreamVersion(ownVersion));
         if (comparison !== undefined && comparison > 0) newer.add(device.pluginVersion);
         if (comparison !== undefined && comparison < 0) older.add(device.pluginVersion);
     }
