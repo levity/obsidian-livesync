@@ -546,7 +546,7 @@
     "moduleLiveSyncMain.titleScramEnabled": "Scram Enabled",
     "moduleLocalDatabase.logWaitingForReady": "Waiting for ready...",
     "moduleLog.pathComponentTooLong": "This path contains a file or folder name longer than ${maxBytes} UTF-8 bytes. It may not work on some Android and Linux file systems.",
-    "moduleLog.showLog": "Show Log",
+    "moduleLog.showLog": "Show sync log",
     "moduleLog.syncMode.configured": "Configured automatic synchronisation: ${modes}.",
     "moduleLog.syncMode.manual": "Manual synchronisation only. Automatic synchronisation is disabled.",
     "moduleLog.syncMode.periodic": "Periodic",
