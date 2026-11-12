@@ -1,0 +1,41 @@
+# Custom builds for levity's devices, installed on the phone and Mac with BRAT.
+# Pushing a tag like 1.0.45-lw.1 from the `lw` branch builds the plugin and
+# publishes a release holding the three files BRAT installs. The tag must match
+# the version in manifest.json, which is what BRAT compares to decide on updates.
+name: Release custom build (lw)
+on:
+  push:
+    tags:
+      - "*-lw.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24.x"
+      - name: Check tag matches manifest version
+        run: |
+          v=$(node -p 'require("./manifest.json").version')
+          if [ "$v" != "$GITHUB_REF_NAME" ]; then
+            echo "manifest.json says $v but the tag is $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            main.js
+            manifest.json
+            styles.css
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          make_latest: true
