@@ -66,4 +66,19 @@ describe("version advisories", () => {
         };
         expect(differentDeviceVersions(snapshot, "self", "1.0.0")).toEqual({ newer: ["2.0.0"], older: ["0.9.0"] });
     });
+    it("compares -lw.<n> custom builds as the upstream version they are built on", () => {
+        const snapshot = {
+            ...empty,
+            devices: [
+                { id: "a", accepted: true, pluginVersion: "1.0.45" },
+                { id: "b", accepted: true, pluginVersion: "1.0.45-lw.1" },
+                { id: "c", accepted: true, pluginVersion: "1.0.49" },
+                { id: "d", accepted: true, pluginVersion: "1.0.44-lw.3" },
+            ],
+        };
+        expect(differentDeviceVersions(snapshot, "self", "1.0.45-lw.2")).toEqual({
+            newer: ["1.0.49"],
+            older: ["1.0.44-lw.3"],
+        });
+    });
 });
