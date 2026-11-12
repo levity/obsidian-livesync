@@ -5133,7 +5133,7 @@ export const allMessages: Readonly<Record<string, Readonly<Record<string, string
         zh: "此路径中包含超过 ${maxBytes} 个 UTF-8 字节的文件或文件夹名。在某些 Android 和 Linux 文件系统上可能无法正常工作。",
     },
     "moduleLog.showLog": {
-        def: "Show Log",
+        def: "Show sync log",
         es: "Mostrar registro",
         fr: "Afficher le journal",
         he: "הצג יומן",

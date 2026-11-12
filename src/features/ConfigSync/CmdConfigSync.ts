@@ -469,9 +469,6 @@ export class ConfigSync extends LiveSyncCommands {
                 return true;
             },
         });
-        this.addRibbonIcon("custom-sync", $msg("cmdConfigSync.showCustomizationSync"), () => {
-            this.showPluginSyncModal();
-        }).addClass("livesync-ribbon-showcustom");
         eventHub.onEvent(EVENT_REQUEST_OPEN_PLUGIN_SYNC_DIALOG, () => this.showPluginSyncModal());
     }
 
@@ -538,9 +535,20 @@ export class ConfigSync extends LiveSyncCommands {
         );
         return true;
     }
+    private customSyncRibbon?: HTMLElement;
     _everyAfterResumeProcess(): Promise<boolean> {
-        const q = activeDocument.querySelector(`.livesync-ribbon-showcustom`);
-        q?.toggleClass("sls-hidden", !this.isThisModuleEnabled());
+        // On mobile the ribbon is a menu of the registered actions, where hiding
+        // the button has no effect, so the action is registered only once
+        // Customization Sync is on. This runs at startup and after every settings
+        // change; turning it off later hides the button (desktop) at once and
+        // drops it from the mobile menu at the next restart.
+        if (this.isThisModuleEnabled() && !this.customSyncRibbon) {
+            this.customSyncRibbon = this.addRibbonIcon("custom-sync", $msg("cmdConfigSync.showCustomizationSync"), () => {
+                this.showPluginSyncModal();
+            });
+            this.customSyncRibbon.addClass("livesync-ribbon-showcustom");
+        }
+        this.customSyncRibbon?.toggleClass("sls-hidden", !this.isThisModuleEnabled());
         return Promise.resolve(true);
     }
     private isCurrentPluginList(generation: number): boolean {
