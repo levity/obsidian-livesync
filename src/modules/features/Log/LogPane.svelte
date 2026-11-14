@@ -95,7 +95,7 @@
     /* The floating navigation bar on mobile sits over the bottom of the view. */
     :global(.is-mobile) .log {
         font-size: 11px;
-        padding-bottom: calc(7em + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(2.5em + env(safe-area-inset-bottom, 0px));
     }
     .log > pre {
         margin: 0;
