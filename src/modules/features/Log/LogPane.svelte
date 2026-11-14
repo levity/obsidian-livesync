@@ -4,11 +4,13 @@
     import { reactive, type ReactiveInstance } from "octagonal-wheels/dataobject/reactive";
     import { Logger } from "@vrtmrz/livesync-commonlib/compat/common/logger";
     import { $msg as msg, currentLang as lang } from "@/common/translation";
+    import { toLogRows } from "./logLine";
     import { compatGlobal } from "@vrtmrz/livesync-commonlib/compat/common/coreEnvFunctions";
 
     let unsubscribe: () => void;
     let messages = $state([] as string[]);
-    let wrapRight = $state(false);
+    let rows = $derived(toLogRows(messages));
+    let wrapRight = $state(true);
     let autoScroll = $state(true);
     let suspended = $state(false);
 
@@ -22,7 +24,7 @@
         if (!suspended) {
             messages = [...e];
             compatGlobal.setTimeout(() => {
-                if (scroll) scroll.scrollTop = scroll.scrollHeight;
+                if (autoScroll && scroll) scroll.scrollTop = scroll.scrollHeight;
             }, 10);
         }
     }
@@ -62,8 +64,12 @@
         </div>
     </div>
     <div class="log" bind:this={scroll}>
-        {#each messages as line}
-            <pre class:wrap-right={wrapRight}>{line}</pre>
+        {#each rows as row}
+            {#if row.kind === "date"}
+                <div class="date">{row.date}</div>
+            {:else}
+                <pre class:wrap-right={wrapRight}><span class="time">{row.time}</span> {row.message}</pre>
+            {/if}
         {/each}
     </div>
 </div>
@@ -82,15 +88,41 @@
         user-select: text;
         -webkit-user-select: text;
         padding-bottom: 2em;
+        font-size: var(--font-smallest);
+        line-height: 1.35;
+    }
+    /* The floating navigation bar on mobile sits over the bottom of the view. */
+    :global(.is-mobile) .log {
+        font-size: 11px;
+        padding-bottom: calc(7em + env(safe-area-inset-bottom, 0px));
     }
     .log > pre {
         margin: 0;
+        padding: 0;
+        font-size: inherit;
+        line-height: inherit;
+        background: none;
     }
     .log > pre.wrap-right {
-        word-break: break-all;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
         max-width: 100%;
-        width: 100%;
-        white-space: normal;
+        /* Wrapped lines hang under the message, not the time. */
+        padding-left: 1.5em;
+        text-indent: -1.5em;
+    }
+    .time {
+        color: var(--text-faint);
+    }
+    .date {
+        margin: 0.6em 0 0.2em;
+        font-family: var(--font-monospace);
+        font-weight: var(--font-semibold);
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+    .date:first-child {
+        margin-top: 0;
     }
     .row {
         display: flex;
