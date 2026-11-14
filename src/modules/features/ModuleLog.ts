@@ -5,6 +5,7 @@ import {
     type ReactiveSource,
     type ReactiveValue,
 } from "octagonal-wheels/dataobject/reactive";
+import { formatLogLine } from "./Log/logLine.ts";
 import {
     LOG_LEVEL_DEBUG,
     LOG_LEVEL_INFO,
@@ -599,7 +600,6 @@ ${stringifyYaml(info)}
         }
         const vaultName = this.services.vault.getVaultName();
         const now = new Date();
-        const timestamp = now.toLocaleString();
         let errorInfo = "";
         if (message instanceof Error) {
             if (message instanceof LiveSyncError) {
@@ -620,7 +620,7 @@ ${stringifyYaml(info)}
                 : message instanceof Error
                   ? `${errorInfo}`
                   : JSON.stringify(message, null, 2);
-        const newMessage = timestamp + "->" + messageContent;
+        const newMessage = formatLogLine(now, messageContent);
 
         if (this.settings?.writeLogToTheFile) {
             this.writeLogToTheFile(now, vaultName, newMessage);
