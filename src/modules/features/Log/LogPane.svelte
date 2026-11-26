@@ -1,15 +1,17 @@
 <script lang="ts">
-    import { onDestroy, onMount } from "svelte";
+    import { onDestroy, onMount, tick } from "svelte";
     import { logMessages } from "@vrtmrz/livesync-commonlib/compat/mock_and_interop/stores";
     import { reactive, type ReactiveInstance } from "octagonal-wheels/dataobject/reactive";
     import { Logger } from "@vrtmrz/livesync-commonlib/compat/common/logger";
     import { $msg as msg, currentLang as lang } from "@/common/translation";
-    import { toLogRows } from "./logLine";
+    import { countDropped, toLogRows } from "./logLine";
     import { compatGlobal } from "@vrtmrz/livesync-commonlib/compat/common/coreEnvFunctions";
 
     let unsubscribe: () => void;
     let messages = $state([] as string[]);
-    let rows = $derived(toLogRows(messages));
+    // Running number of the first displayed line, so rows keep their keys as old lines drop off the front.
+    let firstSeq = $state(0);
+    let rows = $derived(toLogRows(messages, firstSeq));
     let wrapRight = $state(true);
     let autoScroll = $state(true);
     let suspended = $state(false);
@@ -21,14 +23,35 @@
     };
     let { close }: Props = $props();
     // export let close: () => void;
-    function updateLog(logs: Pick<ReactiveInstance<string[]>, "value">) {
-        const e = logs.value;
-        if (!suspended) {
-            messages = [...e];
-            compatGlobal.setTimeout(() => {
-                if (autoScroll && atBottom && scroll) scroll.scrollTop = scroll.scrollHeight;
-            }, 10);
+    // The row at the top of the view and how far below the view's top edge it sits.
+    function findAnchor() {
+        const top = scroll.getBoundingClientRect().top;
+        for (const el of Array.from(scroll.children) as HTMLElement[]) {
+            const rect = el.getBoundingClientRect();
+            if (rect.bottom > top) return { key: el.dataset.key, offset: rect.top - top };
         }
+        return undefined;
+    }
+    async function updateLog(logs: Pick<ReactiveInstance<string[]>, "value">) {
+        const e = logs.value;
+        if (suspended) return;
+        const follow = autoScroll && atBottom;
+        // While scrolled up, keep the rows in view still as lines are added below and dropped above.
+        const anchor = !follow && scroll ? findAnchor() : undefined;
+        firstSeq += countDropped(messages, e);
+        messages = [...e];
+        if (follow) {
+            compatGlobal.setTimeout(() => {
+                if (scroll) scroll.scrollTop = scroll.scrollHeight;
+            }, 10);
+            return;
+        }
+        if (!anchor) return;
+        await tick();
+        const el = Array.from(scroll.children).find((c) => (c as HTMLElement).dataset.key === anchor.key);
+        if (!el) return;
+        const shift = el.getBoundingClientRect().top - scroll.getBoundingClientRect().top - anchor.offset;
+        if (shift) scroll.scrollTop += shift;
     }
     onMount(async () => {
         const _logMessages = reactive(() => logMessages.value);
@@ -70,11 +93,11 @@
         </div>
     </div>
     <div class="log" bind:this={scroll} onscroll={onScroll}>
-        {#each rows as row}
+        {#each rows as row (row.key)}
             {#if row.kind === "date"}
-                <div class="date">{row.date}</div>
+                <div class="date" data-key={row.key}>{row.date}</div>
             {:else}
-                <pre class:wrap-right={wrapRight}><span class="time">{row.time}</span> {row.message}</pre>
+                <pre class:wrap-right={wrapRight} data-key={row.key}><span class="time">{row.time}</span> {row.message}</pre>
             {/if}
         {/each}
     </div>

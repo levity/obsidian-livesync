@@ -25,19 +25,45 @@ export function splitLogLine(line: string): LogLineParts {
     return { date: m[1], time: m[2], message: m[3] };
 }
 
-export type LogRow = { kind: "date"; date: string } | { kind: "line"; time: string; message: string };
+export type LogRow =
+    | { kind: "date"; key: string; date: string }
+    | { kind: "line"; key: string; time: string; message: string };
 
-/** Turns stored lines into display rows, with a date row wherever the day changes. */
-export function toLogRows(lines: string[]): LogRow[] {
+/**
+ * Turns stored lines into display rows, with a date row wherever the day changes.
+ * `firstSeq` is the running number of the first line, so a line keeps its key
+ * while older lines drop off the front of the log.
+ */
+export function toLogRows(lines: string[], firstSeq = 0): LogRow[] {
     const rows: LogRow[] = [];
     let lastDate = "";
-    for (const line of lines) {
+    lines.forEach((line, i) => {
         const { date, time, message } = splitLogLine(line);
         if (date && date !== lastDate) {
-            rows.push({ kind: "date", date });
+            rows.push({ kind: "date", key: `d${date}`, date });
             lastDate = date;
         }
-        rows.push({ kind: "line", time, message });
-    }
+        rows.push({ kind: "line", key: `${firstSeq + i}`, time, message });
+    });
     return rows;
+}
+
+/**
+ * How many lines dropped off the front between two snapshots of the capped log:
+ * the smallest n for which `next` continues `prev.slice(n)`.
+ */
+export function countDropped(prev: string[], next: string[]): number {
+    for (let n = 0; n < prev.length; n++) {
+        const kept = prev.length - n;
+        if (kept > next.length) continue;
+        let same = true;
+        for (let i = 0; i < kept; i++) {
+            if (prev[n + i] !== next[i]) {
+                same = false;
+                break;
+            }
+        }
+        if (same) return n;
+    }
+    return prev.length;
 }
