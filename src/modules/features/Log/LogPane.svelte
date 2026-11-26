@@ -13,6 +13,8 @@
     let wrapRight = $state(true);
     let autoScroll = $state(true);
     let suspended = $state(false);
+    // Follows new lines only while the view is at the bottom; scrolling up stops that until scrolled back down.
+    let atBottom = true;
 
     type Props = {
         close: () => void;
@@ -24,7 +26,7 @@
         if (!suspended) {
             messages = [...e];
             compatGlobal.setTimeout(() => {
-                if (autoScroll && scroll) scroll.scrollTop = scroll.scrollHeight;
+                if (autoScroll && atBottom && scroll) scroll.scrollTop = scroll.scrollHeight;
             }, 10);
         }
     }
@@ -39,6 +41,9 @@
         if (unsubscribe) unsubscribe();
     });
     let scroll: HTMLDivElement;
+    function onScroll() {
+        atBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 8;
+    }
     function closeDialogue() {
         close();
     }
@@ -64,7 +69,7 @@
             <button onclick={() => closeDialogue()}>{msg("Close", {}, lang)}</button>
         </div>
     </div>
-    <div class="log" bind:this={scroll}>
+    <div class="log" bind:this={scroll} onscroll={onScroll}>
         {#each rows as row}
             {#if row.kind === "date"}
                 <div class="date">{row.date}</div>
