@@ -23,7 +23,6 @@ import {
     hiddenFilesEventCount,
     hiddenFilesProcessingCount,
     type LogEntry,
-    logMessages,
 } from "@vrtmrz/livesync-commonlib/compat/mock_and_interop/stores";
 import {
     EVENT_FILE_RENAMED,
@@ -33,9 +32,10 @@ import {
     eventHub,
 } from "@/common/events.ts";
 import { AbstractObsidianModule } from "@/modules/AbstractObsidianModule.ts";
-import { addIcon, debounce, normalizePath, Notice, stringifyYaml, type WorkspaceLeaf } from "@/deps.ts";
+import { addIcon, normalizePath, Notice, stringifyYaml, type WorkspaceLeaf } from "@/deps.ts";
 import { LOG_LEVEL_NOTICE, setGlobalLogFunction } from "octagonal-wheels/common/logger";
 import { LogPaneView, VIEW_TYPE_LOG } from "./Log/LogPaneView.ts";
+import { addDisplayLog } from "./Log/displayLog.ts";
 import { withLock } from "octagonal-wheels/concurrency/lock";
 import { $msg } from "@/common/translation";
 import { P2PLogCollector } from "@vrtmrz/livesync-commonlib/compat/replication/trystero/P2PLogCollector";
@@ -105,21 +105,6 @@ function addLog(log: string) {
     while (logForDump.length > 1000) {
         logForDump.shift();
     }
-}
-
-// Display log is kept separate from the full log history to optimize performance and memory usage.
-// And debounce the updates to the display log to avoid excessive UI updates when there are many log entries in a short time.
-const logForDisplay = [] as string[];
-
-const updateLogMessage = debounce(() => {
-    logMessages.value = [...logForDisplay];
-}, 25);
-function addDisplayLog(log: string) {
-    logForDisplay.push(log);
-    while (logForDisplay.length > 200) {
-        logForDisplay.shift();
-    }
-    updateLogMessage();
 }
 
 const redactPatterns = [/PBKDF2 salt \(Security Seed\):.*$/];

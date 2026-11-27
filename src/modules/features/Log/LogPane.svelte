@@ -4,14 +4,14 @@
     import { reactive, type ReactiveInstance } from "octagonal-wheels/dataobject/reactive";
     import { Logger } from "@vrtmrz/livesync-commonlib/compat/common/logger";
     import { $msg as msg, currentLang as lang } from "@/common/translation";
-    import { countDropped, toLogRows } from "./logLine";
+    import { advanceLogRows, type LogRow } from "./logLine";
+    import { displayLogFirstSeq } from "./displayLog";
     import { compatGlobal } from "@vrtmrz/livesync-commonlib/compat/common/coreEnvFunctions";
 
     let unsubscribe: () => void;
-    let messages = $state([] as string[]);
-    // Running number of the first displayed line, so rows keep their keys as old lines drop off the front.
-    let firstSeq = $state(0);
-    let rows = $derived(toLogRows(messages, firstSeq));
+    let rows = $state.raw([] as LogRow[]);
+    // Running number of rows[0]'s line, so rows keep their keys as old lines drop off the front.
+    let firstSeq = 0;
     let wrapRight = $state(true);
     let autoScroll = $state(true);
     let suspended = $state(false);
@@ -26,20 +26,26 @@
     // The row at the top of the view and how far below the view's top edge it sits.
     function findAnchor() {
         const top = scroll.getBoundingClientRect().top;
-        for (const el of Array.from(scroll.children) as HTMLElement[]) {
-            const rect = el.getBoundingClientRect();
-            if (rect.bottom > top) return { key: el.dataset.key, offset: rect.top - top };
+        const children = scroll.children;
+        let lo = 0;
+        let hi = children.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (children[mid].getBoundingClientRect().bottom > top) hi = mid;
+            else lo = mid + 1;
         }
-        return undefined;
+        const el = children[lo] as HTMLElement | undefined;
+        if (!el) return undefined;
+        return { key: el.dataset.key, offset: el.getBoundingClientRect().top - top };
     }
     async function updateLog(logs: Pick<ReactiveInstance<string[]>, "value">) {
-        const e = logs.value;
         if (suspended) return;
         const follow = autoScroll && atBottom;
         // While scrolled up, keep the rows in view still as lines are added below and dropped above.
         const anchor = !follow && scroll ? findAnchor() : undefined;
-        firstSeq += countDropped(messages, e);
-        messages = [...e];
+        const nextFirstSeq = displayLogFirstSeq();
+        rows = advanceLogRows(rows, firstSeq, logs.value, nextFirstSeq);
+        firstSeq = nextFirstSeq;
         if (follow) {
             compatGlobal.setTimeout(() => {
                 if (scroll) scroll.scrollTop = scroll.scrollHeight;
@@ -48,7 +54,7 @@
         }
         if (!anchor) return;
         await tick();
-        const el = Array.from(scroll.children).find((c) => (c as HTMLElement).dataset.key === anchor.key);
+        const el = scroll.querySelector(`[data-key="${anchor.key}"]`);
         if (!el) return;
         const shift = el.getBoundingClientRect().top - scroll.getBoundingClientRect().top - anchor.offset;
         if (shift) scroll.scrollTop += shift;
@@ -94,11 +100,10 @@
     </div>
     <div class="log" bind:this={scroll} onscroll={onScroll}>
         {#each rows as row (row.key)}
-            {#if row.kind === "date"}
-                <div class="date" data-key={row.key}>{row.date}</div>
-            {:else}
-                <pre class:wrap-right={wrapRight} data-key={row.key}><span class="time">{row.time}</span> {row.message}</pre>
+            {#if row.showDate}
+                <div class="date" data-key="{row.key}d">{row.date}</div>
             {/if}
+            <pre class:wrap-right={wrapRight} data-key={row.key}><span class="time">{row.time}</span> {row.message}</pre>
         {/each}
     </div>
 </div>

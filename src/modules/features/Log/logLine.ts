@@ -25,45 +25,34 @@ export function splitLogLine(line: string): LogLineParts {
     return { date: m[1], time: m[2], message: m[3] };
 }
 
-export type LogRow =
-    | { kind: "date"; key: string; date: string }
-    | { kind: "line"; key: string; time: string; message: string };
+/** One log line as the pane shows it; `showDate` puts a date header above it where the day changes. */
+export type LogRow = { key: string; date: string; time: string; message: string; showDate: boolean };
 
 /**
- * Turns stored lines into display rows, with a date row wherever the day changes.
- * `firstSeq` is the running number of the first line, so a line keeps its key
- * while older lines drop off the front of the log.
+ * Turns stored lines into display rows. `firstSeq` is the running number of the first
+ * line, so a line keeps its key while older lines drop off the front of the log.
+ * `prevDate` is the date of the line before these, when they continue earlier rows.
  */
-export function toLogRows(lines: string[], firstSeq = 0): LogRow[] {
-    const rows: LogRow[] = [];
-    let lastDate = "";
-    lines.forEach((line, i) => {
+export function toLogRows(lines: string[], firstSeq = 0, prevDate = ""): LogRow[] {
+    let lastDate = prevDate;
+    return lines.map((line, i) => {
         const { date, time, message } = splitLogLine(line);
-        if (date && date !== lastDate) {
-            rows.push({ kind: "date", key: `d${date}`, date });
-            lastDate = date;
-        }
-        rows.push({ kind: "line", key: `${firstSeq + i}`, time, message });
+        const showDate = date !== "" && date !== lastDate;
+        if (date) lastDate = date;
+        return { key: `${firstSeq + i}`, date, time, message, showDate };
     });
-    return rows;
 }
 
 /**
- * How many lines dropped off the front between two snapshots of the capped log:
- * the smallest n for which `next` continues `prev.slice(n)`.
+ * Carries `rows` (lines from `firstSeq`) forward to a newer snapshot of the capped log
+ * (`next`, lines from `nextFirstSeq`): drops the lines that fell off the front and
+ * parses only the lines that are new, so each update costs the change, not the whole log.
  */
-export function countDropped(prev: string[], next: string[]): number {
-    for (let n = 0; n < prev.length; n++) {
-        const kept = prev.length - n;
-        if (kept > next.length) continue;
-        let same = true;
-        for (let i = 0; i < kept; i++) {
-            if (prev[n + i] !== next[i]) {
-                same = false;
-                break;
-            }
-        }
-        if (same) return n;
-    }
-    return prev.length;
+export function advanceLogRows(rows: LogRow[], firstSeq: number, next: string[], nextFirstSeq: number): LogRow[] {
+    const end = firstSeq + rows.length;
+    if (nextFirstSeq < firstSeq || nextFirstSeq > end) return toLogRows(next, nextFirstSeq);
+    const kept = rows.slice(nextFirstSeq - firstSeq);
+    if (kept.length > 0 && kept[0].date && !kept[0].showDate) kept[0] = { ...kept[0], showDate: true };
+    const added = toLogRows(next.slice(end - nextFirstSeq), end, kept[kept.length - 1]?.date ?? "");
+    return kept.concat(added);
 }
